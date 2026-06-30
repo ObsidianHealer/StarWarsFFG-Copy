@@ -2305,6 +2305,29 @@ export default class ImportHelpers {
       .replace(/\[P\]/g, "");
   }
 
+  static _skillKeyToName = null;
+
+  /**
+   * Resolves an OggDude skill Key to the system's stable skill key (the English
+   * name used as the key in CONFIG.FFG.skills), derived from the skill
+   * templates so it is independent of the translatable <Name> in Skills.xml.
+   * @param {string} oggKey - OggDude skill Key (e.g. "ASTRO").
+   * @returns {string|undefined} System skill key (e.g. "Astrogation"), or
+   *   undefined if the Key is not a recognised built-in skill.
+   */
+  static oggSkillKeyToSystemKey(oggKey) {
+    if (ImportHelpers._skillKeyToName === null) {
+      ImportHelpers._skillKeyToName = {};
+      for (const template of [ImportHelpers.minionTemplate, ImportHelpers.characterTemplate]) {
+        const skills = template?.data?.skills ?? {};
+        for (const [name, def] of Object.entries(skills)) {
+          if (def?.Key) ImportHelpers._skillKeyToName[def.Key] ??= name;
+        }
+      }
+    }
+    return ImportHelpers._skillKeyToName[oggKey];
+  }
+
   static prepareBaseObject(obj, type) {
     return {
       name: obj.Name,

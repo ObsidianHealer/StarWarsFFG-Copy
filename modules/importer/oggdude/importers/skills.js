@@ -47,7 +47,8 @@ export default class Skills {
             },
           }],
         };
-        CONFIG.temporary.skills[data.flags.starwarsffg.ffgimportid] = data.name;
+        const skillId = data.flags.starwarsffg.ffgimportid;
+        CONFIG.temporary.skills[skillId] = ImportHelpers.oggSkillKeyToSystemKey(skillId) ?? data.name;
 
         if (createJournalCompendium) {
           switch (item.TypeValue) {
