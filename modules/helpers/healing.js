@@ -6,12 +6,34 @@
 export default class HealingHelpers {
   static registerSocketListener() {
     game.socket.on("system.starwarsffg", async (data) => {
+      if (data?.event === "scrollingText") return this.displayScrollingText(data);
       if (data?.event !== "applyStatChange") return;
       if (game.user.id !== game.users.activeGM?.id) return;
       const actor = await this.resolveTargetActor(data.actorUuid);
       if (!actor) return;
       if (data.statusId) await actor.toggleStatusEffect(data.statusId, { active: data.active ?? true });
       else await actor.update(data.updates);
+    });
+  }
+
+  // floating damage/heal number over a token, on every client (canvas text is local-only)
+  static async showFloatingText(uuid, amount, fill) {
+    if (!amount) return;
+    const data = { event: "scrollingText", uuid, text: `${amount > 0 ? "+" : ""}${amount}`, fill };
+    game.socket.emit("system.starwarsffg", data);
+    await this.displayScrollingText(data); // emit doesn't echo to the sender
+  }
+
+  static async displayScrollingText(data) {
+    const doc = await fromUuid(data.uuid);
+    const token = doc?.object ?? (doc?.getActiveTokens?.()[0] ?? null);
+    if (!token?.center) return;
+    canvas.interface.createScrollingText(token.center, data.text, {
+      anchor: CONST.TEXT_ANCHOR_POINTS.TOP,
+      fill: data.fill,
+      stroke: 0x000000,
+      strokeThickness: 4,
+      fontSize: 32,
     });
   }
 
@@ -79,6 +101,7 @@ export default class HealingHelpers {
     const newValue = current + suffered;
     const minionsBefore = actor.system.quantity?.value; // capture before the update recalculates it
     await this.updateActorStats(actor, { [`system.stats.${stat}.value`]: newValue });
+    await this.showFloatingText(uuid, -suffered, asStrain ? 0x9b59b6 : 0xe74c3c);
     await ChatMessage.create({
       content: `<i>${game.i18n.format(asStrain ? "SWFFG.AutoApply.StrainResult" : "SWFFG.AutoApply.DamageResult", { name: actor.name, wounds: suffered, strain: suffered, damage, soak })}</i>`,
     });
@@ -162,6 +185,7 @@ export default class HealingHelpers {
       updates["system.stats.strain.value"] = Math.max((actor.system.stats.strain?.value ?? 0) - strain, 0);
     }
     await this.updateActorStats(actor, updates);
+    await this.showFloatingText(uuid, wounds || strain, 0x2ecc71);
     await this.clearDefeatedIfRecovered(actor, newWounds);
     await ChatMessage.create({
       content: `<i>${game.i18n.format("SWFFG.AutoApply.HealResult", { name: actor.name, wounds, strain })}</i>`,
@@ -205,6 +229,7 @@ export default class HealingHelpers {
       "system.stats.medical.uses": newUses,
       "system.stats.wounds.value": newWounds,
     });
+    await this.showFloatingText(recipient.uuid, woundsHealing, 0x2ecc71);
     await this.clearDefeatedIfRecovered(recipient, newWounds);
 
     const itemName = recipient?.flags?.starwarsffg?.config?.medicalItemName || game.i18n.localize("SWFFG.DefaultMedicalItemName");
