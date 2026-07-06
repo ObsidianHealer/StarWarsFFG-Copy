@@ -423,6 +423,14 @@ export default class SettingsHelpers {
       onChange: this.debouncedReload,
     });
 
+    // last playlist chosen in the Group Manager Roll Initiative dialog
+    game.settings.register("starwarsffg", "initiativePlaylist", {
+      scope: "world",
+      config: false,
+      default: "",
+      type: String,
+    });
+
     game.settings.register("starwarsffg", "enableAutoApply", {
       name: game.i18n.localize("SWFFG.EnableAutoApply"),
       hint: game.i18n.localize("SWFFG.EnableAutoApplyHint"),

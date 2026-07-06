@@ -229,6 +229,10 @@ export class GroupManager extends FormApplication {
       this._endOfEncounter();
     });
 
+    html.find(".roll-initiative-button").click(() => {
+      this._rollPartyInitiative();
+    });
+
     html.find(".duty-button").click((ev) => {
       this._rollDuty();
     });
@@ -277,6 +281,52 @@ export class GroupManager extends FormApplication {
       CONFIG.logger.warn(`Unable to add player ${character.name} `);
     }
     return rangeStart;
+  }
+
+  // Roll initiative for the party's tokens on the current scene (creating/joining the
+  // active combat), optionally starting a combat playlist first
+  async _rollPartyInitiative() {
+    if (!game.user.isGM) return;
+    const saved = game.settings.get("starwarsffg", "initiativePlaylist");
+    const options = game.playlists.contents
+      .map((p) => `<option value="${p.id}" ${p.id === saved ? "selected" : ""}>${p.name}</option>`)
+      .join("");
+    const choice = await new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n.localize("SWFFG.RollInitiative.Button"),
+        content: `<p>${game.i18n.localize("SWFFG.RollInitiative.MusicPrompt")}</p>
+          <select name="playlist" style="width:100%"><option value="">${game.i18n.localize("SWFFG.RollInitiative.NoMusic")}</option>${options}</select>`,
+        buttons: {
+          roll: {
+            label: game.i18n.localize("SWFFG.ButtonRoll"),
+            callback: (html) => resolve({ playlistId: $(html).find("[name=playlist]").val() }),
+          },
+          cancel: { label: game.i18n.localize("SWFFG.Cancel"), callback: () => resolve(null) },
+        },
+        default: "roll",
+        close: () => resolve(null),
+      }).render(true);
+    });
+    if (!choice) return;
+    await game.settings.set("starwarsffg", "initiativePlaylist", choice.playlistId);
+    if (choice.playlistId) await game.playlists.get(choice.playlistId)?.playAll();
+
+    const partyIds = new Set((this.characters ?? []).map((c) => c.id));
+    const tokens = canvas.tokens?.placeables.filter((t) => t.actor && partyIds.has(t.actor.id)) ?? [];
+    if (!tokens.length) {
+      return ui.notifications.warn(game.i18n.localize("SWFFG.RollInitiative.NoTokens"));
+    }
+    const combat = game.combat ?? (await Combat.create({ scene: canvas.scene.id, active: true }));
+    const existing = new Set(combat.combatants.map((c) => c.tokenId));
+    const toCreate = tokens
+      .filter((t) => !existing.has(t.id))
+      .map((t) => ({ tokenId: t.id, actorId: t.actor.id, sceneId: canvas.scene.id }));
+    if (toCreate.length) {
+      await combat.createEmbeddedDocuments("Combatant", toCreate);
+    }
+    // roll only the party's unrolled combatants; NPCs stay in the GM's hands
+    const ids = combat.combatants.filter((c) => partyIds.has(c.actorId) && c.initiative === null).map((c) => c.id);
+    if (ids.length) await combat.rollInitiative(ids);
   }
 
   // RAW end-of-encounter strain recovery: each character rolls a Simple check on the
