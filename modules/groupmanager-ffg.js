@@ -219,6 +219,10 @@ export class GroupManager extends FormApplication {
       this._rollObligation();
     });
 
+    html.find(".end-session-button").click(() => {
+      this._endOfSession();
+    });
+
     html.find(".duty-button").click((ev) => {
       this._rollDuty();
     });
@@ -267,6 +271,28 @@ export class GroupManager extends FormApplication {
       CONFIG.logger.warn(`Unable to add player ${character.name} `);
     }
     return rangeStart;
+  }
+
+  // End-of-session upkeep: recover all strain, reset stimpack uses, clear obligation penalties
+  async _endOfSession() {
+    if (!game.user.isGM) return;
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize("SWFFG.EndSession.Button"),
+      content: `<p>${game.i18n.localize("SWFFG.EndSession.Confirm")}</p>`,
+    });
+    if (!confirmed) return;
+    const effectName = game.i18n.localize("SWFFG.ObligationTriggeredEffect");
+    for (const character of this.characters ?? []) {
+      const obligationEffects = character.effects.filter((e) => e.name === effectName).map((e) => e.id);
+      if (obligationEffects.length) {
+        await character.deleteEmbeddedDocuments("ActiveEffect", obligationEffects);
+      }
+      await character.update({
+        "system.stats.strain.value": 0,
+        "system.stats.medical.uses": 0,
+      });
+    }
+    await ChatMessage.create({ content: `<i>${game.i18n.localize("SWFFG.EndSession.Done")}</i>` });
   }
 
   async _rollObligation() {

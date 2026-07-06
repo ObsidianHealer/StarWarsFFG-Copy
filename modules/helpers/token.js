@@ -59,15 +59,16 @@ export function drawMinionCount(token) {
   const outsideGap = availableSpace / 2;
 
   if (maxCount > maxRender) {
+    // too many minions for pips; show alive/total instead
     const text = new PIXI.Text(
-      "∞",
+      `${curCount}/${maxCount}`,
       {
         fontFamily: "Arial",
-        fontSize: 48,
+        fontSize: 32,
         fill: overflowColor,
         align: "center",
         stroke: "0x000000",
-        strokeThickness: 1,
+        strokeThickness: 2,
         fontWeight: "bold" ,
       }
     );
