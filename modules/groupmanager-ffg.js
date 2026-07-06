@@ -309,7 +309,14 @@ export class GroupManager extends FormApplication {
     });
     if (!choice) return;
     await game.settings.set("starwarsffg", "initiativePlaylist", choice.playlistId);
-    if (choice.playlistId) await game.playlists.get(choice.playlistId)?.playAll();
+    if (choice.playlistId) {
+      const playlist = game.playlists.get(choice.playlistId);
+      if (playlist) {
+        // core fades sounds in/out over the playlist's fade duration; default one if unset
+        if (!playlist.fade) await playlist.update({ fade: 2000 });
+        await playlist.playAll();
+      }
+    }
 
     const partyIds = new Set((this.characters ?? []).map((c) => c.id));
     const tokens = canvas.tokens?.placeables.filter((t) => t.actor && partyIds.has(t.actor.id)) ?? [];
@@ -357,6 +364,9 @@ export class GroupManager extends FormApplication {
       }).render(true);
     });
     if (!chosen) return;
+    // fade out the combat playlist if we started one (stopAll honors the playlist's fade)
+    const playlist = game.playlists.get(game.settings.get("starwarsffg", "initiativePlaylist"));
+    if (playlist?.playing) await playlist.stopAll();
     for (const character of this.characters ?? []) {
       const strain = character.system.stats?.strain;
       if (!strain?.value) continue;
