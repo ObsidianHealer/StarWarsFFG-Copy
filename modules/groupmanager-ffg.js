@@ -118,6 +118,8 @@ export class GroupManager extends FormApplication {
       });
     }
 
+    this.characters = characters;
+
     const dPool = { light: game.settings.get("starwarsffg", "dPoolLight"), dark: game.settings.get("starwarsffg", "dPoolDark") };
     const initiative = CONFIG.Combat.initiative.formula;
     const isGM = game.user.isGM;
@@ -265,14 +267,14 @@ export class GroupManager extends FormApplication {
   }
 
   async _rollObligation() {
-    this._rollTable(this.obligations, game.i18n.localize("SWFFG.DescriptionObligation"));
+    this._rollTable(this.obligations, game.i18n.localize("SWFFG.DescriptionObligation"), true);
   }
 
   async _rollDuty() {
     this._rollTable(this.duties, game.i18n.localize("SWFFG.DescriptionDuty"));
   }
 
-  async _rollTable(table, type) {
+  async _rollTable(table, type, isObligation = false) {
     let r = new Roll("1d100");
     await r.evaluate();
     let rollOptions = game.settings.get("starwarsffg", "privateTriggers") ? { rollMode: "gmroll" } : {};
@@ -292,6 +294,33 @@ export class GroupManager extends FormApplication {
       messageOptions.whisper = ChatMessage.getWhisperRecipients("GM");
     }
     ChatMessage.create(messageOptions);
+
+    if (isObligation && game.settings.get("starwarsffg", "enableAutoApply")) {
+      await this._applyObligationStrain(filteredTable[0]?.playerId ?? null);
+    }
+  }
+
+  // Obligation triggered: strain threshold -2 for the triggered character, -1 for the rest
+  // of the party, applied as an ActiveEffect. Each obligation roll clears the previous
+  // effects first, so a "no trigger" roll resets everyone.
+  async _applyObligationStrain(triggeredId) {
+    if (!game.user.isGM) return;
+    const effectName = game.i18n.localize("SWFFG.ObligationTriggeredEffect");
+    for (const character of this.characters ?? []) {
+      const previous = character.effects.filter((e) => e.name === effectName).map((e) => e.id);
+      if (previous.length) {
+        await character.deleteEmbeddedDocuments("ActiveEffect", previous);
+      }
+      if (!triggeredId) continue;
+      const amount = character.id === triggeredId ? 2 : 1;
+      await character.createEmbeddedDocuments("ActiveEffect", [
+        {
+          name: effectName,
+          img: "icons/svg/downgrade.svg",
+          changes: [{ key: "system.stats.strain.max", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: `-${amount}` }],
+        },
+      ]);
+    }
   }
 
   async _addGroupToCombat(characters, targets, cbt) {

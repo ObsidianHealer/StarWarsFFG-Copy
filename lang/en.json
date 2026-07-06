@@ -396,6 +396,7 @@
   "SWFFG.AutoApply.DamageResult": "{name} suffers {wounds} wounds ({damage} damage, {soak} soak)",
   "SWFFG.AutoApply.HealResult": "{name} heals {wounds} wounds and {strain} strain",
   "SWFFG.AutoApply.NoVehicles": "Automated damage application supports characters only; apply vehicle damage manually.",
+  "SWFFG.ObligationTriggeredEffect": "Obligation Triggered",
   "SWFFG.MedicalItemUnUse": "Removes use for",
   "SWFFG.MedicalItemCannotUseMore": "Cannot use more healing items",
   "SWFFG.MedicalItemRest": "Rests",
