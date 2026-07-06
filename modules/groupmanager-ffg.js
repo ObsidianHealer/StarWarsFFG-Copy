@@ -62,6 +62,9 @@ export class GroupManager extends FormApplication {
    * @return {Object}   The data provided to the template when rendering the form
    */
   getData() {
+    // rebuilt below on every render; without the reset, entries accumulate across re-renders
+    this.obligations = [];
+    this.duties = [];
     const pcListMode = game.settings.get("starwarsffg", "pcListMode");
     const players = game.users.contents.filter((u) => {
     const isValidUser = !u.isGM || game.settings.get("starwarsffg", "GMCharactersInGroupManager");
