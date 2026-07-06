@@ -1,5 +1,7 @@
 import {xpLogEarn} from "./helpers/actor-helpers.js";
 import ActorHelpers from "./helpers/actor-helpers.js";
+import DiceHelpers from "./helpers/dice-helpers.js";
+import { RollFFG } from "./dice/roll.js";
 
 const CanvasLayerClass = foundry?.canvas?.layers?.CanvasLayer || CanvasLayer;
 export class GroupManagerLayer extends CanvasLayerClass {
@@ -223,6 +225,10 @@ export class GroupManager extends FormApplication {
       this._endOfSession();
     });
 
+    html.find(".end-encounter-button").click(() => {
+      this._endOfEncounter();
+    });
+
     html.find(".duty-button").click((ev) => {
       this._rollDuty();
     });
@@ -271,6 +277,35 @@ export class GroupManager extends FormApplication {
       CONFIG.logger.warn(`Unable to add player ${character.name} `);
     }
     return rangeStart;
+  }
+
+  // RAW end-of-encounter strain recovery: each character rolls a Simple check on the
+  // better of Discipline/Cool and recovers strain equal to net successes
+  async _endOfEncounter() {
+    if (!game.user.isGM) return;
+    for (const character of this.characters ?? []) {
+      const strain = character.system.stats?.strain;
+      if (!strain?.value) continue;
+      const pick = ["Discipline", "Cool"]
+        .map((name) => {
+          const skill = character.system.skills?.[name];
+          const characteristic = character.system.characteristics?.[skill?.characteristic];
+          return skill && characteristic ? { name, pool: DiceHelpers.buildDicePool(skill, characteristic) } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.pool.proficiency - a.pool.proficiency || b.pool.ability - a.pool.ability)[0];
+      if (!pick) continue;
+      const roll = await new RollFFG(pick.pool.renderDiceExpression(), null, {
+        success: pick.pool.success, advantage: pick.pool.advantage, failure: pick.pool.failure, threat: pick.pool.threat,
+      }).roll();
+      const recovered = Math.min(Math.max(roll.ffg.success, 0), strain.value);
+      if (recovered) {
+        await character.update({ "system.stats.strain.value": strain.value - recovered });
+      }
+      await roll.toMessage({
+        flavor: game.i18n.format("SWFFG.EndEncounter.Result", { name: character.name, skill: game.i18n.localize(`SWFFG.SkillsName${pick.name}`), strain: recovered }),
+      });
+    }
   }
 
   // End-of-session upkeep: recover all strain, reset stimpack uses, clear obligation penalties
