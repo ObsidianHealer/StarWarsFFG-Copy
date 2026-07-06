@@ -406,6 +406,8 @@
   "SWFFG.ObligationTriggeredEffect": "Obligation Triggered",
   "SWFFG.EndEncounter.Button": "End of Encounter",
   "SWFFG.EndEncounter.Hint": "Each party character rolls a Simple Discipline or Cool check (whichever is better) and recovers strain equal to net successes",
+  "SWFFG.EndEncounter.SkillPrompt": "Which skill does the party use to recover strain?",
+  "SWFFG.EndEncounter.SkillAuto": "Best of Discipline / Cool (RAW)",
   "SWFFG.EndEncounter.Result": "{name} rolls {skill} to recover strain: {strain} strain recovered",
   "SWFFG.EndSession.Button": "End of Session",
   "SWFFG.EndSession.Hint": "Recover all strain, reset healing item uses, and clear obligation penalties for the party",

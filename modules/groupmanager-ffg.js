@@ -280,17 +280,42 @@ export class GroupManager extends FormApplication {
   }
 
   // RAW end-of-encounter strain recovery: each character rolls a Simple check on the
-  // better of Discipline/Cool and recovers strain equal to net successes
+  // better of Discipline/Cool (or a GM-chosen skill) and recovers strain equal to net successes
   async _endOfEncounter() {
     if (!game.user.isGM) return;
+    // skill choices: union of the party's skills (skill lists are world-configurable)
+    const skillNames = [...new Set((this.characters ?? []).flatMap((c) => Object.keys(c.system.skills ?? {})))];
+    const options = skillNames
+      .map((name) => ({ name, label: game.i18n.localize(this.characters.find((c) => c.system.skills?.[name])?.system.skills[name].label ?? name) }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map(({ name, label }) => `<option value="${name}">${label}</option>`)
+      .join("");
+    const chosen = await new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n.localize("SWFFG.EndEncounter.Button"),
+        content: `<p>${game.i18n.localize("SWFFG.EndEncounter.SkillPrompt")}</p>
+          <select name="skill" style="width:100%"><option value="auto">${game.i18n.localize("SWFFG.EndEncounter.SkillAuto")}</option>${options}</select>`,
+        buttons: {
+          roll: {
+            label: game.i18n.localize("SWFFG.ButtonRoll"),
+            callback: (html) => resolve($(html).find("[name=skill]").val()),
+          },
+          cancel: { label: game.i18n.localize("SWFFG.Cancel"), callback: () => resolve(null) },
+        },
+        default: "roll",
+        close: () => resolve(null),
+      }).render(true);
+    });
+    if (!chosen) return;
     for (const character of this.characters ?? []) {
       const strain = character.system.stats?.strain;
       if (!strain?.value) continue;
-      const pick = ["Discipline", "Cool"]
+      const candidates = chosen === "auto" ? ["Discipline", "Cool"] : [chosen];
+      const pick = candidates
         .map((name) => {
           const skill = character.system.skills?.[name];
           const characteristic = character.system.characteristics?.[skill?.characteristic];
-          return skill && characteristic ? { name, pool: DiceHelpers.buildDicePool(skill, characteristic) } : null;
+          return skill && characteristic ? { name, skill, pool: DiceHelpers.buildDicePool(skill, characteristic) } : null;
         })
         .filter(Boolean)
         .sort((a, b) => b.pool.proficiency - a.pool.proficiency || b.pool.ability - a.pool.ability)[0];
@@ -303,7 +328,7 @@ export class GroupManager extends FormApplication {
         await character.update({ "system.stats.strain.value": strain.value - recovered });
       }
       await roll.toMessage({
-        flavor: game.i18n.format("SWFFG.EndEncounter.Result", { name: character.name, skill: game.i18n.localize(`SWFFG.SkillsName${pick.name}`), strain: recovered }),
+        flavor: game.i18n.format("SWFFG.EndEncounter.Result", { name: character.name, skill: game.i18n.localize(pick.skill.label ?? pick.name), strain: recovered }),
       });
     }
   }
