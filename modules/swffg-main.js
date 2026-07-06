@@ -1144,6 +1144,7 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
         let dmg = roll.data?.system?.damage;
         let stunDamage = false;
         let soakReduction = 0;
+        let critBonus = 0;
         // serialized roll data holds source values; re-fetch the item for adjusted (e.g. Brawn-based) damage
         const itemUuid = roll.data?.flags?.starwarsffg?.uuid ?? roll.data?.flags?.starwarsffg?.ffgUuid;
         if (itemUuid) {
@@ -1154,6 +1155,8 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
             stunDamage = HealingHelpers.qualityRanks(item, /stun damage/i) > 0;
             // Pierce ignores 1 soak per rank; Breach ignores 10 per rank (personal scale)
             soakReduction = HealingHelpers.qualityRanks(item, /^pierce/i) + 10 * HealingHelpers.qualityRanks(item, /^breach/i);
+            // Vicious adds +10 per rank to critical injury rolls
+            critBonus = 10 * HealingHelpers.qualityRanks(item, /^vicious/i);
           }
         }
         const base = parseInt(dmg?.adjusted, 10) || parseInt(dmg?.value, 10) || 0;
@@ -1162,14 +1165,14 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
         button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format(labelKey, { damage: total })}</button>`);
         button.on("click", async () => {
           for (const uuid of autoApply.targets) {
-            await HealingHelpers.applyDamage(uuid, total, stunDamage, soakReduction);
+            await HealingHelpers.applyDamage(uuid, total, stunDamage, soakReduction, critBonus);
           }
         });
         content.append(button);
         button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.localize("SWFFG.AutoApply.CritButton")}</button>`);
         button.on("click", async () => {
           for (const uuid of autoApply.targets) {
-            await HealingHelpers.rollCritical(uuid);
+            await HealingHelpers.rollCritical(uuid, critBonus);
           }
         });
       } else if (autoApply.type === "heal") {

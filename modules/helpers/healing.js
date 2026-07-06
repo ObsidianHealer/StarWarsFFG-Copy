@@ -10,7 +10,7 @@ export default class HealingHelpers {
       if (game.user.id !== game.users.activeGM?.id) return;
       const actor = await this.resolveTargetActor(data.actorUuid);
       if (!actor) return;
-      if (data.statusId) await actor.toggleStatusEffect(data.statusId, { active: true });
+      if (data.statusId) await actor.toggleStatusEffect(data.statusId, { active: data.active ?? true });
       else await actor.update(data.updates);
     });
   }
@@ -28,11 +28,11 @@ export default class HealingHelpers {
     return doc?.actor ?? doc;
   }
 
-  static async applyStatus(actor, statusId) {
+  static async applyStatus(actor, statusId, active = true) {
     if (actor.canUserModify(game.user, "update")) {
-      return actor.toggleStatusEffect(statusId, { active: true });
+      return actor.toggleStatusEffect(statusId, { active });
     }
-    game.socket.emit("system.starwarsffg", { event: "applyStatChange", actorUuid: actor.uuid, statusId });
+    game.socket.emit("system.starwarsffg", { event: "applyStatChange", actorUuid: actor.uuid, statusId, active });
   }
 
   // total ranks of a weapon quality (own mods + active attachment mods) whose name matches pattern
@@ -49,7 +49,22 @@ export default class HealingHelpers {
     return ranks;
   }
 
-  static async applyDamage(uuid, damage, asStrain = false, soakReduction = 0) {
+  // total ranks of an actor's talents whose name matches pattern
+  static talentRanks(actor, pattern) {
+    return (actor?.items ?? [])
+      .filter((i) => i.type === "talent" && pattern.test(i.name))
+      .reduce((sum, t) => sum + (parseInt(t.system?.ranks?.current, 10) || 1), 0);
+  }
+
+  // clear the Defeated status once wounds are back at or under the threshold
+  static async clearDefeatedIfRecovered(actor, newWounds) {
+    const max = actor.system.stats?.wounds?.max ?? 0;
+    if (max > 0 && newWounds <= max && actor.statuses?.has("starwarsffg-defeated")) {
+      await this.applyStatus(actor, "starwarsffg-defeated", false);
+    }
+  }
+
+  static async applyDamage(uuid, damage, asStrain = false, soakReduction = 0, critBonus = 0) {
     const actor = await this.resolveTargetActor(uuid);
     if (!actor) return;
     if (actor.type === "vehicle") {
@@ -75,7 +90,7 @@ export default class HealingHelpers {
       await ChatMessage.create({ content: `<i>${game.i18n.format("SWFFG.AutoApply.Incapacitated", { name: actor.name })}</i>` });
       if (!asStrain) {
         // RAW: exceeding the wound threshold also inflicts a critical injury
-        await this.rollCritical(uuid);
+        await this.rollCritical(uuid, critBonus);
       }
     }
   }
@@ -108,7 +123,7 @@ export default class HealingHelpers {
     [150, "the-end-is-nigh"], [Infinity, "dead"],
   ];
 
-  static async rollCritical(uuid) {
+  static async rollCritical(uuid, critBonus = 0) {
     const actor = await this.resolveTargetActor(uuid);
     if (!actor || actor.type === "vehicle") return;
     if (actor.type === "minion") {
@@ -122,12 +137,13 @@ export default class HealingHelpers {
       await ChatMessage.create({ content: `<i>${game.i18n.format("SWFFG.AutoApply.MinionCrit", { name: actor.name })}</i>` });
       return this.reportMinionKills(actor, newWounds, minionsBefore);
     }
-    // RAW: +10 to the roll for each critical injury the target already has
+    // RAW: +10 to the roll for each critical injury the target already has,
+    // +10 per rank of the weapon's Vicious (critBonus), -10 per rank of the target's Durable (min 1)
     const existing = actor.effects.filter((e) => [...(e.statuses ?? [])].some((s) => s.startsWith("starwarsffg-crit-"))).length;
-    const bonus = existing * 10;
+    const bonus = existing * 10 + critBonus - 10 * this.talentRanks(actor, /^durable/i);
     const roll = new Roll("1d100");
     await roll.evaluate();
-    const total = roll.total + bonus;
+    const total = Math.max(roll.total + bonus, 1);
     const [, critId] = this.critTable.find(([max]) => total <= max);
     const statusId = `starwarsffg-crit-${critId}`;
     const statusName = game.i18n.localize(CONFIG.statusEffects.find((s) => s.id === statusId)?.name ?? statusId);
@@ -140,11 +156,13 @@ export default class HealingHelpers {
   static async applyHealing(uuid, wounds, strain = 0) {
     const actor = await this.resolveTargetActor(uuid);
     if (!actor || actor.type === "vehicle") return;
-    const updates = { "system.stats.wounds.value": Math.max((actor.system.stats?.wounds?.value ?? 0) - wounds, 0) };
+    const newWounds = Math.max((actor.system.stats?.wounds?.value ?? 0) - wounds, 0);
+    const updates = { "system.stats.wounds.value": newWounds };
     if (strain && actor.system.stats?.strain) {
       updates["system.stats.strain.value"] = Math.max((actor.system.stats.strain?.value ?? 0) - strain, 0);
     }
     await this.updateActorStats(actor, updates);
+    await this.clearDefeatedIfRecovered(actor, newWounds);
     await ChatMessage.create({
       content: `<i>${game.i18n.format("SWFFG.AutoApply.HealResult", { name: actor.name, wounds, strain })}</i>`,
     });
@@ -182,10 +200,12 @@ export default class HealingHelpers {
     } else if (item.flags.starwarsffg.config.medicalType == 2) { // emergency droid patch
       woundsHealing = 3;
     }
+    const newWounds = Math.max(currentWounds - woundsHealing, 0);
     await this.updateActorStats(recipient, {
       "system.stats.medical.uses": newUses,
-      "system.stats.wounds.value": Math.max(currentWounds - woundsHealing, 0),
+      "system.stats.wounds.value": newWounds,
     });
+    await this.clearDefeatedIfRecovered(recipient, newWounds);
 
     const itemName = recipient?.flags?.starwarsffg?.config?.medicalItemName || game.i18n.localize("SWFFG.DefaultMedicalItemName");
     const content = recipient.id === user.id
