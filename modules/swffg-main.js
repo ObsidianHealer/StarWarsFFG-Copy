@@ -825,6 +825,50 @@ Hooks.once("init", async function () {
       }
     });
 
+    // critical injury statuses (core rulebook crit table), named with healing difficulty.
+    // Visible markers only — crit mechanics stay manual except where they map onto the
+    // existing skill-change effects (Off-Balance, Slightly Dazed).
+    const criticalInjuryStatuses = [
+      ["minor-nick", "MinorNick", "icons/svg/blood.svg"],
+      ["slowed-down", "SlowedDown", "icons/svg/net.svg"],
+      ["sudden-jolt", "SuddenJolt", "icons/svg/lightning.svg"],
+      ["distracted", "Distracted", "icons/svg/daze.svg"],
+      ["off-balance", "OffBalance", "icons/svg/falling.svg", allSkillChanges["setback"], "once"],
+      ["discouraging-wound", "DiscouragingWound", "icons/svg/downgrade.svg"],
+      ["stunned", "Stunned", "icons/svg/paralysis.svg"],
+      ["stinger", "Stinger", "icons/svg/poison.svg"],
+      ["bowled-over", "BowledOver", "icons/svg/falling.svg"],
+      ["head-ringer", "HeadRinger", "icons/svg/stoned.svg"],
+      ["fearsome-wound", "FearsomeWound", "icons/svg/terror.svg"],
+      ["agonizing-wound", "AgonizingWound", "icons/svg/degen.svg"],
+      ["slightly-dazed", "SlightlyDazed", "icons/svg/daze.svg", allSkillChanges["setback"], "combat"],
+      ["scattered-senses", "ScatteredSenses", "icons/svg/eye.svg"],
+      ["hamstrung", "Hamstrung", "icons/svg/net.svg"],
+      ["overpowered", "Overpowered", "icons/svg/downgrade.svg"],
+      ["winded", "Winded", "icons/svg/sleep.svg"],
+      ["compromised", "Compromised", "icons/svg/biohazard.svg"],
+      ["at-the-brink", "AtTheBrink", "icons/svg/degen.svg"],
+      ["crippled", "Crippled", "icons/svg/bones.svg"],
+      ["maimed", "Maimed", "icons/svg/bones.svg"],
+      ["horrific-injury", "HorrificInjury", "icons/svg/blood.svg"],
+      ["temporarily-lame", "TemporarilyLame", "icons/svg/net.svg"],
+      ["blinded", "Blinded", "icons/svg/blind.svg"],
+      ["knocked-senseless", "KnockedSenseless", "icons/svg/unconscious.svg"],
+      ["gruesome-injury", "GruesomeInjury", "icons/svg/blood.svg"],
+      ["bleeding-out", "BleedingOut", "icons/svg/blood.svg"],
+      ["the-end-is-nigh", "TheEndIsNigh", "icons/svg/skull.svg"],
+      ["dead", "Dead", "icons/svg/skull.svg"],
+    ];
+    for (const [id, key, img, changes, duration] of criticalInjuryStatuses) {
+      CONFIG.statusEffects.push({
+        id: `starwarsffg-crit-${id}`,
+        img,
+        name: `SWFFG.Status.Crit.${key}`,
+        changes: changes ?? [],
+        ...(duration ? { system: { duration } } : {}),
+      });
+    }
+
     // custom statuses defined by the user
     try {
       const addedStatuses = $.parseJSON(game.settings.get("starwarsffg", "additionalStatuses"));
