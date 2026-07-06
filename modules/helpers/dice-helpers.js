@@ -2,6 +2,7 @@ import PopoutEditor from "../popout-editor.js";
 import RollBuilderFFG from "../dice/roll-builder.js";
 import ModifierHelpers from "../helpers/modifiers.js";
 import ImportHelpers from "../importer/import-helpers.js";
+import HealingHelpers from "./healing.js";
 
 export default class DiceHelpers {
   static async rollSkill(obj, event, type, flavorText, sound) {
@@ -90,9 +91,20 @@ export default class DiceHelpers {
 
     // TODO: Get weapon specific modifiers from itemmodifiers and itemattachments
 
+    let difficulty = 2 + status.difficulty; // default to average difficulty
+    let healTarget = null;
+    // Medicine check on a targeted patient: difficulty from the patient's wounds (RAW)
+    if (skillName === "Medicine" && game.user.targets.size === 1 && game.settings.get("starwarsffg", "enableAutoApply")) {
+      const patient = [...game.user.targets][0];
+      if (patient.actor) {
+        difficulty = HealingHelpers.medicineDifficulty(patient.actor);
+        healTarget = patient.document.uuid;
+      }
+    }
+
     let dicePool = this.buildDicePool(skill, characteristic, {
       setback: (skill.setback ?? 0) + status.setback + defenseDice,
-      difficulty: 2 + status.difficulty, // default to average difficulty
+      difficulty,
     });
 
     if (type === "ability") {
@@ -102,6 +114,9 @@ export default class DiceHelpers {
     }
 
     dicePool = new DicePoolFFG(await this.getModifiers(dicePool, itemData));
+    if (healTarget) {
+      dicePool.ffgAutoApply = { type: "heal", targets: [healTarget] };
+    }
     await this.displayRollDialog(data, dicePool, `${game.i18n.localize("SWFFG.Rolling")} ${game.i18n.localize(skill.label)}`, skill.label, itemData, flavorText, sound);
   }
 

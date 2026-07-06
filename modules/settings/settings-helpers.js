@@ -423,6 +423,15 @@ export default class SettingsHelpers {
       onChange: this.debouncedReload,
     });
 
+    game.settings.register("starwarsffg", "enableAutoApply", {
+      name: game.i18n.localize("SWFFG.EnableAutoApply"),
+      hint: game.i18n.localize("SWFFG.EnableAutoApplyHint"),
+      scope: "world",
+      config: true,
+      default: true,
+      type: Boolean,
+    });
+
     game.settings.register("starwarsffg", "consumeHealingItem", {
       name: game.i18n.localize("SWFFG.ConsumeHealingItem"),
       hint: game.i18n.localize("SWFFG.ConsumeHealingItemHint"),

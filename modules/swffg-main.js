@@ -27,6 +27,7 @@ import { GroupManager } from "./groupmanager-ffg.js";
 import PopoutEditor from "./popout-editor.js";
 
 import DiceHelpers from "./helpers/dice-helpers.js";
+import HealingHelpers from "./helpers/healing.js";
 import Helpers from "./helpers/common.js";
 import TemplateHelpers from "./helpers/partial-templates.js";
 import SkillListImporter from "./importer/skills-list-importer.js";
@@ -1089,6 +1090,42 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
   const content = html.find(".message-content");
   content[0].innerHTML = await PopoutEditor.renderDiceImages(content[0].innerHTML);
 
+  // Apply Damage / Apply Healing buttons on rolls that captured targets
+  const autoApply = messageData.message.flags?.starwarsffg?.autoApply;
+  if (autoApply?.targets?.length && game.settings.get("starwarsffg", "enableAutoApply")) {
+    const roll = app.rolls?.[0];
+    if (roll?.ffg?.success > 0) {
+      let button;
+      if (autoApply.type === "damage") {
+        let dmg = roll.data?.system?.damage;
+        // serialized roll data holds source values; re-fetch the item for adjusted (e.g. Brawn-based) damage
+        const itemUuid = roll.data?.flags?.starwarsffg?.uuid ?? roll.data?.flags?.starwarsffg?.ffgUuid;
+        if (itemUuid) {
+          const item = await fromUuid(itemUuid);
+          if (item) dmg = (await item.getItemDetails())?.damage ?? dmg;
+        }
+        const base = parseInt(dmg?.adjusted, 10) || parseInt(dmg?.value, 10) || 0;
+        const total = base + roll.ffg.success;
+        button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format("SWFFG.AutoApply.DamageButton", { damage: total })}</button>`);
+        button.on("click", async () => {
+          for (const uuid of autoApply.targets) {
+            await HealingHelpers.applyDamage(uuid, total);
+          }
+        });
+      } else if (autoApply.type === "heal") {
+        const wounds = roll.ffg.success;
+        const strain = roll.ffg.advantage ?? 0;
+        button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format("SWFFG.AutoApply.HealButton", { wounds, strain })}</button>`);
+        button.on("click", async () => {
+          for (const uuid of autoApply.targets) {
+            await HealingHelpers.applyHealing(uuid, wounds, strain);
+          }
+        });
+      }
+      if (button) content.append(button);
+    }
+  }
+
   html.on("click", ".ffg-pool-to-player", () => {
     const poolData = messageData.message.flags.starwarsffg;
 
@@ -1133,6 +1170,7 @@ function isCurrentVersionNullOrBlank(currentVersion) {
 // Handle migration duties
 Hooks.once("ready", async () => {
   SettingsHelpers.readyLevelSetting();
+  HealingHelpers.registerSocketListener();
 
   // NOTE: the "currentVersion" will be updated in handleUpdate, preventing the code below from running in the future
   // this is intended to encourage migrating code to this file to clean up the main file

@@ -240,6 +240,11 @@ export default class RollBuilderFFG extends FormApplication {
         if (this.roll.item && this.roll.item.hasOwnProperty('crew') && Object.keys(this.roll.item).length > 1) {
           await this.roll.item.update({"flags": {"starwarsffg": {"crew": this.roll.item.crew}}})
         }
+        // snapshot targets now — they may change before anyone clicks the chat card
+        let autoApply = this.dicePool.ffgAutoApply;
+        if (!autoApply && ["weapon", "shipweapon"].includes(this.roll.item?.type) && game.user.targets.size > 0) {
+          autoApply = { type: "damage", targets: [...game.user.targets].map((t) => t.document.uuid) };
+        }
         await roll.toMessage({
           user: game.user.id,
           speaker: {
@@ -248,6 +253,7 @@ export default class RollBuilderFFG extends FormApplication {
             token: this.roll.data?.token?._id,
           },
           flavor: `${game.i18n.localize("SWFFG.Rolling")} ${game.i18n.localize(this.roll.skillName)}...`,
+          ...(autoApply ? { flags: { starwarsffg: { autoApply } } } : {}),
         });
         if (this.roll?.sound) {
           AudioHelper.play({ src: this.roll.sound }, true);
