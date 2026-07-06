@@ -35,14 +35,28 @@ export default class HealingHelpers {
     game.socket.emit("system.starwarsffg", { event: "applyStatChange", actorUuid: actor.uuid, statusId });
   }
 
-  static async applyDamage(uuid, damage, asStrain = false) {
+  // total ranks of a weapon quality (own mods + active attachment mods) whose name matches pattern
+  static qualityRanks(item, pattern) {
+    let ranks = 0;
+    for (const mod of item.system?.itemmodifier ?? []) {
+      if (pattern.test(mod?.name ?? "")) ranks += parseInt(mod.system?.rank, 10) || 1;
+    }
+    for (const attachment of item.system?.itemattachment ?? []) {
+      for (const mod of attachment.system?.itemmodifier ?? []) {
+        if (mod.system?.active && pattern.test(mod?.name ?? "")) ranks += parseInt(mod.system?.rank, 10) || 1;
+      }
+    }
+    return ranks;
+  }
+
+  static async applyDamage(uuid, damage, asStrain = false, soakReduction = 0) {
     const actor = await this.resolveTargetActor(uuid);
     if (!actor) return;
     if (actor.type === "vehicle") {
       // ponytail: personal scale only; vehicle armor/hull rules differ enough to stay manual
       return ui.notifications.warn(game.i18n.localize("SWFFG.AutoApply.NoVehicles"));
     }
-    const soak = actor.system.stats?.soak?.value ?? 0;
+    const soak = Math.max((actor.system.stats?.soak?.value ?? 0) - soakReduction, 0);
     const suffered = Math.max(damage - soak, 0);
     const stat = asStrain ? "strain" : "wounds";
     const current = actor.system.stats?.[stat]?.value ?? 0;
