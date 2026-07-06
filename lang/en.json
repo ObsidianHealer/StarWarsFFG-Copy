@@ -401,6 +401,8 @@
   "SWFFG.AutoApply.CritButton": "Roll Critical Injury",
   "SWFFG.AutoApply.CritResult": "Critical injury on {name}: {injury} (rolled {roll} + {bonus} = {total})",
   "SWFFG.AutoApply.Incapacitated": "{name} is incapacitated!",
+  "SWFFG.AutoApply.MinionKills": "{killed} minion(s) killed — {remaining} remain in {name}",
+  "SWFFG.AutoApply.MinionCrit": "Critical injury against {name} kills a minion outright!",
   "SWFFG.ObligationTriggeredEffect": "Obligation Triggered",
   "SWFFG.MedicalItemUnUse": "Removes use for",
   "SWFFG.MedicalItemCannotUseMore": "Cannot use more healing items",

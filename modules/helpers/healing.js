@@ -62,10 +62,14 @@ export default class HealingHelpers {
     const current = actor.system.stats?.[stat]?.value ?? 0;
     const max = actor.system.stats?.[stat]?.max ?? 0;
     const newValue = current + suffered;
+    const minionsBefore = actor.system.quantity?.value; // capture before the update recalculates it
     await this.updateActorStats(actor, { [`system.stats.${stat}.value`]: newValue });
     await ChatMessage.create({
       content: `<i>${game.i18n.format(asStrain ? "SWFFG.AutoApply.StrainResult" : "SWFFG.AutoApply.DamageResult", { name: actor.name, wounds: suffered, strain: suffered, damage, soak })}</i>`,
     });
+    if (!asStrain && actor.type === "minion") {
+      return this.reportMinionKills(actor, newValue, minionsBefore);
+    }
     if (newValue > max && max > 0) {
       await this.applyStatus(actor, "starwarsffg-defeated");
       await ChatMessage.create({ content: `<i>${game.i18n.format("SWFFG.AutoApply.Incapacitated", { name: actor.name })}</i>` });
@@ -73,6 +77,22 @@ export default class HealingHelpers {
         // RAW: exceeding the wound threshold also inflicts a critical injury
         await this.rollCritical(uuid);
       }
+    }
+  }
+
+  // announce minion deaths from a group's new wound total (mirrors the quantity formula in actor-ffg.js)
+  static async reportMinionKills(actor, newWounds, before) {
+    const unit = actor.system.unit_wounds?.value ?? 0;
+    const qmax = actor.system.quantity?.max ?? 0;
+    if (unit <= 0 || qmax <= 0) return;
+    before = before ?? qmax;
+    const after = Math.max(Math.min(qmax, qmax - Math.floor((newWounds - 1) / unit)), 0);
+    if (after >= before) return;
+    await ChatMessage.create({
+      content: `<i>${game.i18n.format("SWFFG.AutoApply.MinionKills", { name: actor.name, killed: before - after, remaining: after })}</i>`,
+    });
+    if (after === 0) {
+      await this.applyStatus(actor, "starwarsffg-defeated");
     }
   }
 
@@ -91,6 +111,17 @@ export default class HealingHelpers {
   static async rollCritical(uuid) {
     const actor = await this.resolveTargetActor(uuid);
     if (!actor || actor.type === "vehicle") return;
+    if (actor.type === "minion") {
+      // RAW: a critical injury against a minion group kills one minion outright
+      const unit = actor.system.unit_wounds?.value ?? 0;
+      if (unit <= 0) return;
+      const current = actor.system.stats?.wounds?.value ?? 0;
+      const newWounds = current + (unit - (current % unit)) + 1;
+      const minionsBefore = actor.system.quantity?.value;
+      await this.updateActorStats(actor, { "system.stats.wounds.value": newWounds });
+      await ChatMessage.create({ content: `<i>${game.i18n.format("SWFFG.AutoApply.MinionCrit", { name: actor.name })}</i>` });
+      return this.reportMinionKills(actor, newWounds, minionsBefore);
+    }
     // RAW: +10 to the roll for each critical injury the target already has
     const existing = actor.effects.filter((e) => [...(e.statuses ?? [])].some((s) => s.startsWith("starwarsffg-crit-"))).length;
     const bonus = existing * 10;

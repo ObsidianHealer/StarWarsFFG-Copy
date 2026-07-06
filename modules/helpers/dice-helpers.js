@@ -114,6 +114,7 @@ export default class DiceHelpers {
     }
 
     dicePool = new DicePoolFFG(await this.getModifiers(dicePool, itemData));
+    dicePool.upgradeDifficulty(this.getAdversaryUpgrades(itemData));
     if (healTarget) {
       dicePool.ffgAutoApply = { type: "heal", targets: [healTarget] };
     }
@@ -138,6 +139,21 @@ export default class DiceHelpers {
       }
     }
     return defenseDice;
+  }
+
+  // Adversary talent: upgrade the difficulty of combat checks against the target once per rank
+  static getAdversaryUpgrades(itemData) {
+    if (!game.settings.get("starwarsffg", "enableAutoApply")) return 0;
+    let upgrades = 0;
+    if (itemData?.type === "weapon" || itemData?.metaData?.tags?.includes("weapon")) {
+      for (const target of game.user.targets) {
+        const ranks = (target.actor?.items ?? [])
+          .filter((i) => i.type === "talent" && /^adversary/i.test(i.name))
+          .reduce((sum, t) => sum + (parseInt(t.system?.ranks?.current, 10) || 1), 0);
+        upgrades = Math.max(upgrades, ranks);
+      }
+    }
+    return upgrades;
   }
 
   static async displayRollDialog(data, dicePool, description, skillName, item, flavorText, sound) {
@@ -192,6 +208,7 @@ export default class DiceHelpers {
     });
 
     dicePool = new DicePoolFFG(await this.getModifiers(dicePool, item));
+    dicePool.upgradeDifficulty(this.getAdversaryUpgrades(item));
 
     this.displayRollDialog(actorSheet, dicePool, `${game.i18n.localize("SWFFG.Rolling")} ${skill.label}`, skill.label, item, flavorText, sound);
   }
