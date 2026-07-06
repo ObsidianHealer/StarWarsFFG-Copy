@@ -347,17 +347,6 @@ export default class SettingsHelpers {
       },
     });
 
-    // Increase compatibility with old versions (likely to make new games kinda weird as it updates items from chat data)
-    game.settings.register("starwarsffg", "oldWorldCompatability", {
-      name: game.i18n.localize("SWFFG.OldWorld.CompatLabel"),
-      hint: game.i18n.localize("SWFFG.OldWorld.CompatHint"),
-      scope: "world",
-      config: false,
-      default: false,
-      type: Boolean,
-      onChange: this.debouncedReload,
-    });
-
     game.settings.register("starwarsffg", "RivalTokenPrepend", {
       name: game.i18n.localize("SWFFG.Settings.actor.RivalTokenPrepend.Name"),
       hint: game.i18n.localize("SWFFG.Settings.actor.RivalTokenPrepend.Hint"),

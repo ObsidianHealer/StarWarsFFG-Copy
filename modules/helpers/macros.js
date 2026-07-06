@@ -21,7 +21,7 @@ export async function createFFGMacro(bar, data, slot) {
         command = `await Hotbar.toggleDocumentSheet("${data.uuid}");`;
       } else {
         command = `
-      game.ffg.DiceHelpers.rollItem(\"${item._id}\", \"${entity.actorId}\");
+      game.ffg.DiceHelpers.rollItem(\"${entity._id}\", \"${entity.parent.id}\");
       `;
       }
       macro = await createMacroItem({
@@ -34,8 +34,8 @@ export async function createFFGMacro(bar, data, slot) {
       const actor = game.actors.get(data.actorId);
       const command = `
     const ffgactor = game.actors.get("${data.actorId}");
-    const skill = ffgactor.data.data.skills["${data.data.skill}"];
-    const characteristic = ffgactor.data.data.characteristics["${data.data.characteristic}"];
+    const skill = ffgactor.system.skills["${data.data.skill}"];
+    const characteristic = ffgactor.system.characteristics["${data.data.characteristic}"];
     const actorSheet = ffgactor.sheet.getData();
     game.ffg.DiceHelpers.rollSkillDirect(skill, characteristic, 2, actorSheet);`;
       macro = await createMacroItem({
