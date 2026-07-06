@@ -1142,18 +1142,31 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
       let button;
       if (autoApply.type === "damage") {
         let dmg = roll.data?.system?.damage;
+        let stunDamage = false;
         // serialized roll data holds source values; re-fetch the item for adjusted (e.g. Brawn-based) damage
         const itemUuid = roll.data?.flags?.starwarsffg?.uuid ?? roll.data?.flags?.starwarsffg?.ffgUuid;
         if (itemUuid) {
           const item = await fromUuid(itemUuid);
-          if (item) dmg = (await item.getItemDetails())?.damage ?? dmg;
+          if (item) {
+            dmg = (await item.getItemDetails())?.damage ?? dmg;
+            // Stun Damage quality: the weapon deals strain instead of wounds (still reduced by soak)
+            stunDamage = (item.system?.itemmodifier ?? []).some((m) => /stun damage/i.test(m?.name ?? ""));
+          }
         }
         const base = parseInt(dmg?.adjusted, 10) || parseInt(dmg?.value, 10) || 0;
         const total = base + roll.ffg.success;
-        button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format("SWFFG.AutoApply.DamageButton", { damage: total })}</button>`);
+        const labelKey = stunDamage ? "SWFFG.AutoApply.StrainButton" : "SWFFG.AutoApply.DamageButton";
+        button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format(labelKey, { damage: total })}</button>`);
         button.on("click", async () => {
           for (const uuid of autoApply.targets) {
-            await HealingHelpers.applyDamage(uuid, total);
+            await HealingHelpers.applyDamage(uuid, total, stunDamage);
+          }
+        });
+        content.append(button);
+        button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.localize("SWFFG.AutoApply.CritButton")}</button>`);
+        button.on("click", async () => {
+          for (const uuid of autoApply.targets) {
+            await HealingHelpers.rollCritical(uuid);
           }
         });
       } else if (autoApply.type === "heal") {
