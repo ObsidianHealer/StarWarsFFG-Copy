@@ -1,6 +1,7 @@
 import {xpLogEarn} from "./helpers/actor-helpers.js";
 import ActorHelpers from "./helpers/actor-helpers.js";
 import DiceHelpers from "./helpers/dice-helpers.js";
+import HealingHelpers from "./helpers/healing.js";
 import { RollFFG } from "./dice/roll.js";
 
 const CanvasLayerClass = foundry?.canvas?.layers?.CanvasLayer || CanvasLayer;
@@ -386,6 +387,7 @@ export class GroupManager extends FormApplication {
       const recovered = Math.min(Math.max(roll.ffg.success, 0), strain.value);
       if (recovered) {
         await character.update({ "system.stats.strain.value": strain.value - recovered });
+        await HealingHelpers.showFloatingText(character.uuid, recovered, 0x2ecc71);
       }
       await roll.toMessage({
         flavor: game.i18n.format("SWFFG.EndEncounter.Result", { name: character.name, skill: game.i18n.localize(pick.skill.label ?? pick.name), strain: recovered }),

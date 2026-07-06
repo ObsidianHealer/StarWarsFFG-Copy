@@ -17,8 +17,8 @@ export default class HealingHelpers {
   }
 
   // floating damage/heal number over a token, on every client (canvas text is local-only)
-  static async showFloatingText(uuid, amount, fill) {
-    if (!amount) return;
+  static async showFloatingText(uuid, amount, fill, showZero = false) {
+    if (!amount && !showZero) return;
     const data = { event: "scrollingText", uuid, text: `${amount > 0 ? "+" : ""}${amount}`, fill };
     game.socket.emit("system.starwarsffg", data);
     await this.displayScrollingText(data); // emit doesn't echo to the sender
@@ -101,7 +101,8 @@ export default class HealingHelpers {
     const newValue = current + suffered;
     const minionsBefore = actor.system.quantity?.value; // capture before the update recalculates it
     await this.updateActorStats(actor, { [`system.stats.${stat}.value`]: newValue });
-    await this.showFloatingText(uuid, -suffered, asStrain ? 0x9b59b6 : 0xe74c3c);
+    // a fully-soaked hit still pops a 0 so the table sees the attack landed
+    await this.showFloatingText(uuid, -suffered, asStrain ? 0x9b59b6 : 0xe74c3c, true);
     await ChatMessage.create({
       content: `<i>${game.i18n.format(asStrain ? "SWFFG.AutoApply.StrainResult" : "SWFFG.AutoApply.DamageResult", { name: actor.name, wounds: suffered, strain: suffered, damage, soak })}</i>`,
     });
