@@ -224,6 +224,10 @@ export class GroupManager extends FormApplication {
       this._endOfSession();
     });
 
+    html.find(".night-rest-button").click(() => {
+      this._nightsRest();
+    });
+
     html.find(".end-encounter-button").click(() => {
       this._endOfEncounter();
     });
@@ -392,6 +396,19 @@ export class GroupManager extends FormApplication {
         flavor: game.i18n.format("SWFFG.EndEncounter.Result", { name: character.name, skill: game.i18n.localize(pick.skill.label ?? pick.name), strain: recovered }),
       });
     }
+  }
+
+  // RAW natural rest (F&D p.226): each full night's rest heals 1 wound.
+  // ponytail: the weekly Resilience check to heal a Critical Injury stays manual —
+  // no in-game calendar to hang "per week" on
+  async _nightsRest() {
+    if (!game.user.isGM) return;
+    for (const character of this.characters ?? []) {
+      if ((character.system.stats?.wounds?.value ?? 0) > 0) {
+        await HealingHelpers.applyHealing(character.uuid, 1);
+      }
+    }
+    await ChatMessage.create({ content: `<i>${game.i18n.localize("SWFFG.NightRest.Done")}</i>` });
   }
 
   // End-of-session upkeep: recover all strain, reset stimpack uses, clear obligation penalties

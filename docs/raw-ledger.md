@@ -34,7 +34,8 @@ when — a row without it is code-only inference.
 | Stimpack uses reset per in-game day | p.227/229 | `_endOfSession` zeroes `medical.uses` | DEVIATION — resets per session, not per day (disclosed in code comment) |
 | Adversary talent: upgrade difficulty of all combat checks against the target once per rank | p.404 | `DiceHelpers.getAdversaryUpgrades` (weapon rolls only, max across targets) | VERIFIED 2026-07-13 |
 | Obligation triggered: party strain threshold −2 (−1 for the rolled PC's player... table variant) | EotE Core Obligation chapter | groupmanager obligation effects | BLOCKED — EotE Core not owned; memory-sourced values, flagged. Re-trigger: user provides the book/table |
-| Natural rest: 1 wound per night, weekly Resilience vs crit severity; bacta/oil rates | p.226 | not automated | NOT BUILT — see below |
+| Natural rest: 1 wound per full night's rest | p.226 | `_nightsRest` (Group Manager "Night's Rest" button) | VERIFIED + BUILT 2026-07-13 |
+| Weekly Resilience check vs crit severity; bacta tank / oil bath rates | p.226 | not automated | NOT BUILT — manual GM rolls; no in-game calendar to automate "per week"/"per hour" |
 
 ## Deliberately not built (re-trigger conditions)
 
