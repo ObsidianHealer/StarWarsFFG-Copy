@@ -405,6 +405,7 @@
   "SWFFG.AutoApply.MinionKills": "{killed} minion(s) killed — {remaining} remain in {name}",
   "SWFFG.AutoApply.MinionCrit": "Critical injury against {name} kills a minion outright!",
   "SWFFG.ObligationTriggeredEffect": "Obligation Triggered",
+  "SWFFG.DutyTriggeredEffect": "Duty Triggered",
   "SWFFG.RollInitiative.Button": "Roll Initiative",
   "SWFFG.RollInitiative.Hint": "Add the party's tokens on the current scene to combat and roll their initiative, optionally starting a playlist",
   "SWFFG.RollInitiative.MusicPrompt": "Start a playlist with the encounter?",

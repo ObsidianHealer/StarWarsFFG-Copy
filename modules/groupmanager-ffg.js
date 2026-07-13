@@ -419,9 +419,9 @@ export class GroupManager extends FormApplication {
       content: `<p>${game.i18n.localize("SWFFG.EndSession.Confirm")}</p>`,
     });
     if (!confirmed) return;
-    const effectName = game.i18n.localize("SWFFG.ObligationTriggeredEffect");
+    const effectNames = [game.i18n.localize("SWFFG.ObligationTriggeredEffect"), game.i18n.localize("SWFFG.DutyTriggeredEffect")];
     for (const character of this.characters ?? []) {
-      const obligationEffects = character.effects.filter((e) => e.name === effectName).map((e) => e.id);
+      const obligationEffects = character.effects.filter((e) => effectNames.includes(e.name)).map((e) => e.id);
       if (obligationEffects.length) {
         await character.deleteEmbeddedDocuments("ActiveEffect", obligationEffects);
       }
@@ -464,30 +464,43 @@ export class GroupManager extends FormApplication {
     }
     ChatMessage.create(messageOptions);
 
-    if (isObligation && game.settings.get("starwarsffg", "enableAutoApply")) {
-      await this._applyObligationStrain(filteredTable[0]?.playerId ?? null);
+    if (game.settings.get("starwarsffg", "enableAutoApply")) {
+      // RAW (EotE p.41 / AoR p.48): the party-wide effect fires whenever the roll is
+      // equal to or under the group's total, even if no individual's range matched;
+      // doubles (11, 22, ... 99) double all the effects
+      const total = table.reduce((max, e) => Math.max(max, e.rangeEnd), 0);
+      const partyTriggered = r.total <= total;
+      const doubles = partyTriggered && r.total < 100 && r.total % 11 === 0;
+      await this._applyTriggerEffects(isObligation, partyTriggered ? filteredTable[0]?.playerId ?? "party" : null, doubles);
     }
   }
 
-  // Obligation triggered: strain threshold -2 for the triggered character, -1 for the rest
-  // of the party, applied as an ActiveEffect. Each obligation roll clears the previous
-  // effects first, so a "no trigger" roll resets everyone.
-  async _applyObligationStrain(triggeredId) {
+  // Obligation: strain threshold -2 triggered / -1 party (EotE p.41).
+  // Duty: wound threshold +2 triggered / +1 party (AoR p.48). Doubles double both.
+  // Applied as an ActiveEffect; each roll clears the previous effects first, so a
+  // "no trigger" roll resets everyone.
+  async _applyTriggerEffects(isObligation, triggeredId, doubles) {
     if (!game.user.isGM) return;
-    const effectName = game.i18n.localize("SWFFG.ObligationTriggeredEffect");
+    const effectName = game.i18n.localize(isObligation ? "SWFFG.ObligationTriggeredEffect" : "SWFFG.DutyTriggeredEffect");
     for (const character of this.characters ?? []) {
       const previous = character.effects.filter((e) => e.name === effectName).map((e) => e.id);
       if (previous.length) {
         await character.deleteEmbeddedDocuments("ActiveEffect", previous);
       }
       if (!triggeredId) continue;
-      const amount = character.id === triggeredId ? 2 : 1;
+      const amount = (character.id === triggeredId ? 2 : 1) * (doubles ? 2 : 1);
       await character.createEmbeddedDocuments("ActiveEffect", [
-        {
-          name: effectName,
-          img: "icons/svg/downgrade.svg",
-          changes: [{ key: "system.stats.strain.max", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: `-${amount}` }],
-        },
+        isObligation
+          ? {
+              name: effectName,
+              img: "icons/svg/downgrade.svg",
+              changes: [{ key: "system.stats.strain.max", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: `-${amount}` }],
+            }
+          : {
+              name: effectName,
+              img: "icons/svg/upgrade.svg",
+              changes: [{ key: "system.stats.wounds.max", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: `${amount}` }],
+            },
       ]);
     }
   }

@@ -33,7 +33,8 @@ when — a row without it is code-only inference.
 | End-of-encounter strain recovery: Simple Discipline **or** Cool check, 1 strain per success | p.229 | `_endOfEncounter` in groupmanager | DEVIATION — auto mode picks the better skill for the player (disclosed in code comment) |
 | Stimpack uses reset per in-game day | p.227/229 | `_endOfSession` zeroes `medical.uses` | DEVIATION — resets per session, not per day (disclosed in code comment) |
 | Adversary talent: upgrade difficulty of all combat checks against the target once per rank | p.404 | `DiceHelpers.getAdversaryUpgrades` (weapon rolls only, max across targets) | VERIFIED 2026-07-13 |
-| Obligation triggered: party strain threshold −2 (−1 for the rolled PC's player... table variant) | EotE Core Obligation chapter | groupmanager obligation effects | BLOCKED — EotE Core not owned; memory-sourced values, flagged. Re-trigger: user provides the book/table |
+| Obligation triggered: roll ≤ group total → party strain threshold −1, triggered PC −2, doubles double it | EotE Core p.41 (PDF +9) | `_applyTriggerEffects` | VERIFIED + FIXED 2026-07-13 (was: individual-match-only trigger, no doubles) |
+| Duty triggered: roll ≤ group total → party wound threshold +1, triggered PC +2, doubles double it | AoR Core p.48 (PDF +1, image-only scan) | `_applyTriggerEffects` | VERIFIED + BUILT 2026-07-13 (duty roll previously had no mechanical effect) |
 | Natural rest: 1 wound per full night's rest | p.226 | `_nightsRest` (Group Manager "Night's Rest" button) | VERIFIED + BUILT 2026-07-13 |
 | Weekly Resilience check vs crit severity; bacta tank / oil bath rates | p.226 | not automated | NOT BUILT — manual GM rolls; no in-game calendar to automate "per week"/"per hour" |
 
@@ -49,6 +50,13 @@ when — a row without it is code-only inference.
   `verify-static.mjs` + the checklist below instead.
 - `renderChatMessage` → `renderChatMessageHTML` migration — deprecated-but-working in
   v13. Re-trigger: first Foundry v14+ bump.
+- EotE GM Kit optional rule (extra nemesis initiative slot) — GM adds a combatant slot
+  manually; not worth automation.
+- Suns of Fortune / Stay on Target content (species, ships, gear, Corellia) — data, not
+  mechanics: import via OggDude datasets, no system code. Stay on Target may contain
+  squadron rules (image-only scan, unread). Re-trigger: user wants squadron play.
+- EotE/AoR Core duplicate core mechanics — spot-checked as identical to the F&D rows
+  above; F&D citations remain authoritative.
 
 ## In-Foundry smoke-test checklist (riskiest first — none of this code has run yet)
 
