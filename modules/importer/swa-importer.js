@@ -375,7 +375,7 @@ export default class SWAImporter extends FormApplication {
                 const skilltheme = await game.settings.get("starwarsffg", "skilltheme");
 
                 if (skilltheme !== "starwars") {
-                  skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills));
+                  skills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills);
                 }
 
                 let importType;
@@ -563,7 +563,7 @@ export default class SWAImporter extends FormApplication {
                 if (item.weapons) {
                   const template = await ImportHelpers.getTemplate("weapon");
                   item.weapons.forEach((weapon) => {
-                    let data = JSON.parse(JSON.stringify(template));
+                    let data = foundry.utils.deepClone(template);
                     let weaponData;
 
                     if (typeof weapon === "object") {

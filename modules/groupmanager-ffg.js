@@ -89,7 +89,6 @@ export class GroupManager extends FormApplication {
           try {
             obligationRangeStart = this._addCharacterObligationDuty(player.character, obligationRangeStart, player.character.system.obligationlist, "obligations");
             dutyRangeStart = this._addCharacterObligationDuty(player.character, dutyRangeStart, player.character.system.dutylist, "duties");
-            //obligationRangeStart = this._addCharacterObligations(player.character, obligationRangeStart);
             //dutyRangeStart = this._addCharacterDuties(player.character, dutyRangeStart);
             characters.push(player.character);
           } catch (err) {
@@ -116,7 +115,6 @@ export class GroupManager extends FormApplication {
           obligationRangeStart = this._addCharacterObligationDuty(c, obligationRangeStart, c.system.obligationlist, "obligations");
           dutyRangeStart = this._addCharacterObligationDuty(c, dutyRangeStart, c.system.dutylist, "duties");
           characters.push(c);
-          // obligationRangeStart = this._addCharacterObligations(c, obligationRangeStart);
           // dutyRangeStart = this._addCharacterDuties(c, dutyRangeStart);
         } catch (err) {
           CONFIG.logger.warn(`Unable to add player (${c.name}) to obligation/duty table`, err);
@@ -337,8 +335,9 @@ export class GroupManager extends FormApplication {
     if (ids.length) await combat.rollInitiative(ids);
   }
 
-  // RAW end-of-encounter strain recovery: each character rolls a Simple check on the
-  // better of Discipline/Cool (or a GM-chosen skill) and recovers strain equal to net successes
+  // End-of-encounter strain recovery (F&D p.229): Simple check, 1 strain per success.
+  // ponytail: house-rule deviation — auto mode picks the statistically better of
+  // Discipline/Cool for each character; RAW has the player choose the skill
   async _endOfEncounter() {
     if (!game.user.isGM) return;
     // skill choices: union of the party's skills (skill lists are world-configurable)
@@ -411,6 +410,8 @@ export class GroupManager extends FormApplication {
       }
       await character.update({
         "system.stats.strain.value": 0,
+        // ponytail: house-rule proxy — RAW resets stimpack uses per in-game day (p.229),
+        // not per session; multi-day sessions and no-rest cliffhangers diverge from RAW here
         "system.stats.medical.uses": 0,
       });
     }

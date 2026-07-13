@@ -19,10 +19,10 @@ export default class DiceHelpers {
     let skills;
     const theme = await game.settings.get("starwarsffg", "skilltheme");
     try {
-      skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === theme).skills));
+      skills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === theme).skills);
     } catch (err) {
       // if we run into an error use the default starwars skill set
-      skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === "starwars").skills));
+      skills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === "starwars").skills);
       CONFIG.logger.warn(`Unable to load skill theme ${theme}, defaulting to starwars skill theme`, err);
     }
 

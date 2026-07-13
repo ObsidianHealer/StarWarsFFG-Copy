@@ -565,7 +565,7 @@ export class ItemFFG extends ItemBaseFFG {
     for (let upgrade of controls) {
       if (upgrade.includes(itemType)) {
         if (talents[upgrade].islearned) {
-          const item = JSON.parse(JSON.stringify(talents[upgrade]));
+          const item = foundry.utils.deepClone(talents[upgrade]);
 
           if (item.isRanked || listProperty === "powerUpgrades") {
             item.rank = 1;

@@ -215,7 +215,7 @@ export class ActorFFG extends Actor {
 
     // if the actor has skills, add custom skills
     if (data.skills) {
-      let skills = JSON.parse(JSON.stringify(CONFIG.FFG.skills));
+      let skills = foundry.utils.deepClone(CONFIG.FFG.skills);
 
       data.skills = foundry.utils.mergeObject(skills, data.skills);
 
@@ -412,7 +412,7 @@ export class ActorFFG extends Actor {
       const learnedTalents = Object.keys(element.system.talents).filter((key) => element.system.talents[key].islearned === true);
 
       learnedTalents.forEach((talent) => {
-        const item = JSON.parse(JSON.stringify(element.system.talents[talent]));
+        const item = foundry.utils.deepClone(element.system.talents[talent]);
         item.firstSpecialization = element.id;
         item.source = [{ type: "specialization", typeLabel: "SWFFG.Specialization", name: element.name, id: element.id }];
         if (item.isRanked) {

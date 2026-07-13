@@ -45,7 +45,7 @@ export default class ItemHelpers {
 
     if (this.object.type === "talent") {
       if (this.object.flags?.clickfromparent?.length) {
-        let listofparents = JSON.parse(JSON.stringify(this.object.flags.clickfromparent));
+        let listofparents = foundry.utils.deepClone(this.object.flags.clickfromparent);
         while (listofparents.length > 0) {
           const parent = listofparents.shift();
           const spec = await fromUuid(parent.id);
