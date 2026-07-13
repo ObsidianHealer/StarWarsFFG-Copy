@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "gulp css",
+    "test": "node scripts/verify-static.mjs",
     "lint": "npx eslint modules",
     "watch": "gulp"
   },
