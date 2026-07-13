@@ -604,7 +604,7 @@ Hooks.once("init", async function () {
       });
 
       if (game.settings.get("starwarsffg", "skilltheme") !== "starwars") {
-        const altSkills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills));
+        const altSkills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills);
 
         let skills = {};
         Object.keys(altSkills).forEach((skillKey) => {
@@ -641,7 +641,7 @@ Hooks.once("init", async function () {
         if (CONFIG.FFG?.alternateskilllists?.length) {
           let skilllist = game.settings.get("starwarsffg", "skilltheme");
           try {
-            let skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === skilllist)));
+            let skills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === skilllist));
             CONFIG.logger.log(`Applying skill theme ${skilllist} to actor`);
 
             if (!actor?.flags?.starwarsffg?.hasOwnProperty('ffgimportid') && JSON.stringify(Object.keys(skills.skills).sort()) !== JSON.stringify(Object.keys(actor.system.skills).sort())) {
@@ -1163,14 +1163,16 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
         const total = base + roll.ffg.success;
         const labelKey = stunDamage ? "SWFFG.AutoApply.StrainButton" : "SWFFG.AutoApply.DamageButton";
         button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format(labelKey, { damage: total })}</button>`);
-        button.on("click", async () => {
+        button.on("click", async (ev) => {
+          ev.currentTarget.disabled = true; // one apply per click target, ever
           for (const uuid of autoApply.targets) {
             await HealingHelpers.applyDamage(uuid, total, stunDamage, soakReduction, critBonus);
           }
         });
         content.append(button);
         button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.localize("SWFFG.AutoApply.CritButton")}</button>`);
-        button.on("click", async () => {
+        button.on("click", async (ev) => {
+          ev.currentTarget.disabled = true;
           for (const uuid of autoApply.targets) {
             await HealingHelpers.rollCritical(uuid, critBonus);
           }
@@ -1179,7 +1181,8 @@ Hooks.on("renderChatMessage", async (app, html, messageData) => {
         const wounds = roll.ffg.success;
         const strain = roll.ffg.advantage ?? 0;
         button = $(`<button type="button" class="ffg-auto-apply">${game.i18n.format("SWFFG.AutoApply.HealButton", { wounds, strain })}</button>`);
-        button.on("click", async () => {
+        button.on("click", async (ev) => {
+          ev.currentTarget.disabled = true;
           for (const uuid of autoApply.targets) {
             await HealingHelpers.applyHealing(uuid, wounds, strain);
           }
@@ -1285,7 +1288,7 @@ Hooks.once("ready", async () => {
 
         if (CONFIG.FFG?.alternateskilllists?.length) {
           try {
-            let skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === skilllist)));
+            let skills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === skilllist));
             CONFIG.logger.log(`Applying skill theme ${skilllist} to actor ${actor.name}`);
 
             Object.keys(actor.system.skills).forEach((skill) => {
@@ -1331,7 +1334,7 @@ Hooks.once("ready", async () => {
 
         CONFIG.FFG.alternateskilllists = skillList;
         if (game.settings.get("starwarsffg", "skilltheme") !== "starwars") {
-          const altSkills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills));
+          const altSkills = foundry.utils.deepClone(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills);
 
           let skills = {};
           Object.keys(altSkills).forEach((skillKey) => {

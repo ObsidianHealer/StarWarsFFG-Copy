@@ -396,6 +396,7 @@
   "SWFFG.AutoApply.DamageResult": "{name} suffers {wounds} wounds ({damage} damage, {soak} soak)",
   "SWFFG.AutoApply.HealResult": "{name} heals {wounds} wounds and {strain} strain",
   "SWFFG.AutoApply.NoVehicles": "Automated damage application supports characters only; apply vehicle damage manually.",
+  "SWFFG.AutoApply.NoGM": "No GM is logged in — the change was not applied. Ask the GM to apply it manually.",
   "SWFFG.AutoApply.StrainButton": "Apply {damage} Strain Damage to Target",
   "SWFFG.AutoApply.StrainResult": "{name} suffers {strain} strain ({damage} damage, {soak} soak)",
   "SWFFG.AutoApply.CritButton": "Roll Critical Injury",

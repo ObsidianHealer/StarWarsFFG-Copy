@@ -41,7 +41,21 @@ export default class HealingHelpers {
     if (actor.canUserModify(game.user, "update")) {
       return actor.update(updates);
     }
-    game.socket.emit("system.starwarsffg", { event: "applyStatChange", actorUuid: actor.uuid, updates });
+    this.emitStatChange({ actorUuid: actor.uuid, updates });
+  }
+
+  // non-owner writes go through the active GM's client; without one the emit lands nowhere
+  static emitStatChange(data) {
+    if (!game.users.activeGM) {
+      return ui.notifications.warn(game.i18n.localize("SWFFG.AutoApply.NoGM"));
+    }
+    game.socket.emit("system.starwarsffg", { event: "applyStatChange", ...data });
+  }
+
+  // smallest wound total that drops exactly one more minion than `current` already has
+  // (exact-multiple totals already count as a kill, so they advance a full unit)
+  static minionCritWounds(current, unit) {
+    return (Math.floor(Math.max(current - 1, 0) / unit) + 1) * unit + 1;
   }
 
   // accepts token or actor uuids
@@ -54,7 +68,7 @@ export default class HealingHelpers {
     if (actor.canUserModify(game.user, "update")) {
       return actor.toggleStatusEffect(statusId, { active });
     }
-    game.socket.emit("system.starwarsffg", { event: "applyStatChange", actorUuid: actor.uuid, statusId, active });
+    this.emitStatChange({ actorUuid: actor.uuid, statusId, active });
   }
 
   // total ranks of a weapon quality (own mods + active attachment mods) whose name matches pattern
@@ -93,6 +107,8 @@ export default class HealingHelpers {
       // ponytail: personal scale only; vehicle armor/hull rules differ enough to stay manual
       return ui.notifications.warn(game.i18n.localize("SWFFG.AutoApply.NoVehicles"));
     }
+    // RAW p.400: minions never suffer strain; strain damage deals wounds instead
+    if (asStrain && actor.type === "minion") asStrain = false;
     const soak = Math.max((actor.system.stats?.soak?.value ?? 0) - soakReduction, 0);
     const suffered = Math.max(damage - soak, 0);
     const stat = asStrain ? "strain" : "wounds";
@@ -155,7 +171,7 @@ export default class HealingHelpers {
       const unit = actor.system.unit_wounds?.value ?? 0;
       if (unit <= 0) return;
       const current = actor.system.stats?.wounds?.value ?? 0;
-      const newWounds = current + (unit - (current % unit)) + 1;
+      const newWounds = this.minionCritWounds(current, unit);
       const minionsBefore = actor.system.quantity?.value;
       await this.updateActorStats(actor, { "system.stats.wounds.value": newWounds });
       await ChatMessage.create({ content: `<i>${game.i18n.format("SWFFG.AutoApply.MinionCrit", { name: actor.name })}</i>` });
@@ -223,7 +239,8 @@ export default class HealingHelpers {
     if (item.flags.starwarsffg.config.medicalType == 1) { // stimpack
       woundsHealing = Math.max(5 - prevUses, 0);
     } else if (item.flags.starwarsffg.config.medicalType == 2) { // emergency droid patch
-      woundsHealing = 3;
+      // RAW p.227: patches share the stimpack five-per-day limit, just without the 5..1 ramp
+      woundsHealing = prevUses >= 5 ? 0 : 3;
     }
     const newWounds = Math.max(currentWounds - woundsHealing, 0);
     await this.updateActorStats(recipient, {
